@@ -117,6 +117,9 @@ class WS2805LightOutput : public light::AddressableLight {
   void set_constant_brightness(bool constant_brightness) { this->constant_brightness_ = constant_brightness; }
   void set_fdin_pin(uint8_t pin) { this->fdin_pin_ = pin; }
   void set_use_simple_encoder(bool use_simple_encoder) { this->use_simple_encoder_ = use_simple_encoder; }
+  void set_sparse_dimming(bool v) { this->sparse_dimming_ = v; }
+  void set_sparse_max_step(uint8_t v) { this->sparse_max_step_ = v; }
+  void set_sparse_floor_pwm(uint8_t v) { this->sparse_floor_pwm_ = v; }
 
   // ── Diagnostics (read from YAML template sensors via output_id) ──
   // Number of WS2805 pixels driven on this strand.
@@ -170,6 +173,7 @@ class WS2805LightOutput : public light::AddressableLight {
   void compute_white_bytes_(bool is_fading, uint8_t &cw, uint8_t &ww);
   void clear_white_state_();
   void fill_led_buffer_(uint8_t r, uint8_t g, uint8_t b, uint8_t ww, uint8_t cw);
+  void sparse_fill_(uint8_t r, uint8_t g, uint8_t b, uint8_t ww, uint8_t cw, uint8_t step);
   size_t encode_buffer_();
   bool encode_and_transmit_();
 
@@ -221,6 +225,9 @@ class WS2805LightOutput : public light::AddressableLight {
   bool dithering_{false};
   bool constant_brightness_{false};
   bool use_simple_encoder_{false};  // rmt_encoder: simple (RAM-efficient) vs copy (default, robust refill)
+  bool sparse_dimming_{false};      // extend the brightness range with a sparse dimmer floor
+  uint8_t sparse_max_step_{8};      // number of extra dimness levels (practical floor)
+  uint8_t sparse_floor_pwm_{2};     // PWM level for lit LEDs in the sparse regime (1 is unreliable)
   float error_cw_{0.0f};
   float error_ww_{0.0f};
   bool effect_whites_suppressed_{false};
