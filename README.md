@@ -73,6 +73,7 @@ Component versions **0.6.8 and newer** support the color-accessor API used by **
 | `fdin_pin` | Optional backup data output for strips with a redundant input |
 | `sparse_dimming` | `false`; enable spatial dimming for static lighting |
 | `sparse_max_step` | `8`, allowed range 2–32; largest spacing between active LEDs |
+| `sparse_floor_pwm` | `2`, allowed range 1–255; PWM level for lit LEDs in the sparse regime |
 
 In the current schema, `pin` remains required even when `din_pin` is supplied; `din_pin` overrides the selected data GPIO. Use `pin` in ordinary configurations. A backup data output is not a replacement for correct power and ground wiring.
 
@@ -100,9 +101,12 @@ light:
     num_leds: 60
     sparse_dimming: true
     sparse_max_step: 8
+    sparse_floor_pwm: 2
 ```
 
 `sparse_max_step` sets the largest spacing between active LEDs. With `8`, the lowest settings light approximately every eighth LED. As brightness rises, more LEDs participate before the output moves into ordinary PWM dimming. The pattern is static and centered on the strip; gaps can remain visible. Full brightness is preserved, and the brightness control still uses 0–100%.
+
+`sparse_floor_pwm` sets the PWM level for the LEDs that stay lit in the sparse regime. The default is `2` because level `1` (a ~1µs pulse at the chip's 4kHz PWM) is near the LED's turn-on threshold and lights unevenly on some strips. Raise it if the lowest level still shimmers.
 
 This is spatial dimming, so the number of LEDs limits the available steps. Very short strips offer fewer distinct levels, and there is a minimum nonzero brightness rather than unlimited dimming. RGB and both white channels use the selected-pixel pattern; warm and cold white remain global controls rather than independently configurable white segments. Sparse dimming does not allocate another large frame buffer and is independent of `rmt_preencode`.
 
@@ -114,7 +118,9 @@ The component's validator permits **8 instances on ESP32**, **4 on ESP32-S2/S3**
 
 ### Timing & diagnostics
 
-Advanced timing defaults are `bit0_high_ns: 300`, `bit0_low_ns: 800`, `bit1_high_ns: 800`, `bit1_low_ns: 800` and `reset_pulse_us: 300`. Change them only when the strip's timing requirements call for it.
+Advanced timing defaults are `bit0_high_ns: 380`, `bit0_low_ns: 950`, `bit1_high_ns: 900`, `bit1_low_ns: 600` and `reset_pulse_us: 300`. These follow the WS2805 datasheet ranges (T0H 220–380 ns, T0L/T1L 580 ns–1 µs, T1H 580 ns–1 µs, period ≥ 1.25 µs). The "0" high is deliberately set at the upper bound (380 ns) because a "0" is a short high pulse that dominates low-brightness/sparse data, and the strip's DIN→DOUT reshaping (up to ~300 ns round-trip) otherwise eats the narrow pulse and drops the leading pixels; the "1" low must stay ≥ 580 ns. Change these only when the strip's timing requirements call for it.
+
+> **Testing note:** OTA-flashing a WS2805 strip can leave the first chip(s) latched in their old state. After changing timing or firmware, **hard power-cycle the strip** before judging the result.
 
 Template sensors can call `get_num_leds()`, `get_frame_bytes()`, `get_rmt_resolution_hz()`, `get_last_frame_ms()`, `get_max_refresh_hz()` and `get_tx_error_count()` on the light ID. These are diagnostics, not a hardware compatibility certificate.
 

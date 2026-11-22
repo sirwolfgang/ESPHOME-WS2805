@@ -120,6 +120,7 @@ class WS2805LightOutput : public light::AddressableLight {
   void set_use_simple_encoder(bool use_simple_encoder) { this->use_simple_encoder_ = use_simple_encoder; }
   void set_sparse_dimming(bool v) { this->sparse_dimming_ = v; }
   void set_sparse_max_step(uint8_t v) { this->sparse_max_step_ = v; }
+  void set_sparse_floor_pwm(uint8_t v) { this->sparse_floor_pwm_ = v; }
 
   // ── Diagnostics (read from YAML template sensors via output_id) ──
   // Number of WS2805 pixels driven on this strand.
@@ -227,6 +228,7 @@ class WS2805LightOutput : public light::AddressableLight {
   bool use_simple_encoder_{true};  // rmt_preencode defaults to false: preserve RAM-efficient encoding
   bool sparse_dimming_{false};      // extend the brightness range with a sparse dimmer floor
   uint8_t sparse_max_step_{8};      // largest spacing between active pixels
+  uint8_t sparse_floor_pwm_{2};     // PWM level for lit pixels in the sparse regime (1 is unreliable)
   uint8_t sparse_step_{1};          // retain the mask while white channels fade to off
   float error_cw_{0.0f};
   float error_ww_{0.0f};
@@ -235,13 +237,13 @@ class WS2805LightOutput : public light::AddressableLight {
   float suppressed_cw_{0.0f};
   float suppressed_ww_{0.0f};
 
-  // Configurable RMT bit timing (defaults: WS2805 datasheet center values).
+  // Configurable RMT bit timing (defaults: WS2805 datasheet ranges).
   // Tick counts are resolution-dependent; the "@80MHz" notes below are just
   // illustrative for the classic ESP32 (resolution is auto-detected per target).
-  uint32_t bit0_high_ns_{300};   // spec: 220-380ns → center at 300ns (24 ticks @ 80MHz)
-  uint32_t bit0_low_ns_{800};    // spec: 580ns-1µs → 800ns (64 ticks @ 80MHz)
-  uint32_t bit1_high_ns_{800};   // spec: 580ns-1µs → 800ns (64 ticks @ 80MHz)
-  uint32_t bit1_low_ns_{800};    // spec: 580ns-1µs → 800ns (64 ticks @ 80MHz)
+  uint32_t bit0_high_ns_{380};   // spec: 220-380ns → upper bound (30 ticks @ 80MHz) for max reshaping margin
+  uint32_t bit0_low_ns_{950};    // spec: 580ns-1µs → 950ns (76 ticks @ 80MHz)
+  uint32_t bit1_high_ns_{900};   // spec: 580ns-1µs → 900ns (72 ticks @ 80MHz)
+  uint32_t bit1_low_ns_{600};    // spec: 580ns-1µs → 600ns (48 ticks @ 80MHz)
   uint32_t reset_pulse_us_{300}; // spec: ≥280µs (24000 ticks @ 80MHz)
   uint8_t isr_priority_{3};      // RMT TX interrupt priority (1-3)
 

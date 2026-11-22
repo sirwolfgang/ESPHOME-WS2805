@@ -22,6 +22,7 @@ CONF_ISR_PRIORITY = "isr_priority"
 CONF_RMT_PREENCODE = "rmt_preencode"
 CONF_SPARSE_DIMMING = "sparse_dimming"
 CONF_SPARSE_MAX_STEP = "sparse_max_step"
+CONF_SPARSE_FLOOR_PWM = "sparse_floor_pwm"
 CHANNEL_ORDERS = {
     "RGBWWCW": (0, 1, 2, 3, 4),
     "RGBCWWW": (0, 1, 2, 4, 3),
@@ -74,13 +75,18 @@ CONFIG_SCHEMA = cv.All(
     cv.Optional(CONF_CONSTANT_BRIGHTNESS, default=False): cv.boolean,
     cv.Optional("cct_transition_speed", default="3s"): cv.positive_time_period_milliseconds,
     cv.Optional("dithering", default=False): cv.boolean,
-    # Advanced RMT bit timing — defaults center in the WS2805 datasheet ranges.
+    # Advanced RMT bit timing — defaults chosen from the WS2805 datasheet ranges.
     # The RMT resolution is auto-detected per build target, so no clock divider
     # is exposed here.
-    cv.Optional("bit0_high_ns", default=300): cv.positive_int,
-    cv.Optional("bit0_low_ns", default=800): cv.positive_int,
-    cv.Optional("bit1_high_ns", default=800): cv.positive_int,
-    cv.Optional("bit1_low_ns", default=800): cv.positive_int,
+    cv.Optional("bit0_high_ns", default=380): cv.positive_int,
+    # WS2805 datasheet: each bit period (TH+TL) must be >= 1.25µs, and both the
+    # "0" and "1" low phases are 580ns-1µs (T0L/T1L). The "0" high (T0H) is
+    # 220-380ns, so we use the upper bound for maximum margin against the strip's
+    # DIN→DOUT reshaping, which otherwise eats the narrow pulse on the leading
+    # (mostly-zero) pixels of a sparse frame. The "1" low must be >= 580ns.
+    cv.Optional("bit0_low_ns", default=950): cv.positive_int,
+    cv.Optional("bit1_high_ns", default=900): cv.positive_int,
+    cv.Optional("bit1_low_ns", default=600): cv.positive_int,
     cv.Optional("reset_pulse_us", default=300): cv.positive_int,
     cv.Optional(CONF_ISR_PRIORITY, default=3): cv.int_range(min=1, max=3),
     # Preserve the RAM-efficient path unless pre-encoding is explicitly enabled.
@@ -90,6 +96,7 @@ CONFIG_SCHEMA = cv.All(
     # PWM floor, giving extra dimness below "all LEDs at 1/255".
     cv.Optional(CONF_SPARSE_DIMMING, default=False): cv.boolean,
     cv.Optional(CONF_SPARSE_MAX_STEP, default=8): cv.int_range(min=2, max=32),
+    cv.Optional(CONF_SPARSE_FLOOR_PWM, default=2): cv.int_range(min=1, max=255),
 }).extend(cv.COMPONENT_SCHEMA),
     validate_rmt_usage
 )
@@ -132,3 +139,4 @@ async def to_code(config):
     cg.add(var.set_use_simple_encoder(not config[CONF_RMT_PREENCODE]))
     cg.add(var.set_sparse_dimming(config[CONF_SPARSE_DIMMING]))
     cg.add(var.set_sparse_max_step(config[CONF_SPARSE_MAX_STEP]))
+    cg.add(var.set_sparse_floor_pwm(config[CONF_SPARSE_FLOOR_PWM]))
